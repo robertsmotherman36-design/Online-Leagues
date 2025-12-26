@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fighting League Tracker v4 - Final</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #e0e0e0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; }
+        h1, h2 { color: #ff4500; text-transform: uppercase; letter-spacing: 2px; border-bottom: 2px solid #ff4500; display: inline-block; padding-bottom: 5px; }
+        .section { background: #1e1e1e; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #252525; color: #ff4500; }
+
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+        input, select, button { padding: 10px; border-radius: 4px; border: 1px solid #444; background: #2a2a2a; color: white; }
+        button { background: #ff4500; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #cc3700; }
+
+        /* History Log Styles */
+        #history-log { max-height: 200px; overflow-y: auto; background: #161616; padding: 10px; border-radius: 4px; border: 1px solid #333; }
+        .history-item { padding: 8px; border-bottom: 1px solid #222; font-size: 0.9em; }
+        .history-item span { color: #ff4500; font-weight: bold; }
+        .timestamp { color: #888; font-size: 0.8em; float: right; }
+        
+        .reset-btn { background: #444; margin-top: 15px; font-size: 0.8em; }
+        .reset-btn:hover { background: #ff0000; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Fighting League Management</h1>
+
+    <div class="section">
+        <h2>Rankings</h2>
+        <table>
+            <thead>
+                <tr><th>Fighter</th><th>W</th><th>L</th><th>Pts</th></tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Report Match</h2>
+        <div class="controls">
+            <select id="winnerSelect"><option value="">-- Winner --</option></select>
+            <span>def.</span>
+            <select id="loserSelect"><option value="">-- Loser --</option></select>
+            <button onclick="submitMatch()">Submit Result</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Recent Fights</h2>
+        <div id="history-log">
+            </div>
+    </div>
+
+    <div class="section">
+        <h2>Settings</h2>
+        <div class="controls">
+            <input type="text" id="fighterName" placeholder="New Fighter Name">
+            <button onclick="addFighter()">Register</button>
+        </div>
+        <button class="reset-btn" onclick="resetLeague()">Wipe All Data</button>
+    </div>
+</div>
+
+<script>
+    // LOAD DATA
+    let fighters = JSON.parse(localStorage.getItem('leagueFighters')) || [];
+    let history = JSON.parse(localStorage.getItem('leagueHistory')) || [];
+
+    function saveToDisk() {
+        localStorage.setItem('leagueFighters', JSON.stringify(fighters));
+        localStorage.setItem('leagueHistory', JSON.stringify(history));
+    }
+
+    function updateUI() {
+        const tbody = document.getElementById('table-body');
+        const winSelect = document.getElementById('winnerSelect');
+        const loseSelect = document.getElementById('loserSelect');
+        const historyLog = document.getElementById('history-log');
+
+        // Update Rankings
+        fighters.sort((a, b) => b.points - a.points);
+        tbody.innerHTML = fighters.map(f => `
+            <tr><td><strong>${f.name}</strong></td><td>${f.wins}</td><td>${f.losses}</td><td>${f.points}</td></tr>
+        `).join('');
+
+        // Update Select Menus
+        const options = fighters.map(f => `<option value="${f.name}">${f.name}</option>`).join('');
+        winSelect.innerHTML = '<option value="">-- Winner --</option>' + options;
+        loseSelect.innerHTML = '<option value="">-- Loser --</option>' + options;
+
+        // Update History Log (showing last 10 fights)
+        historyLog.innerHTML = history.slice().reverse().map(m => `
+            <div class="history-item">
+                <span>${m.winner}</span> defeated ${m.loser}
+                <div class="timestamp">${m.time}</div>
+            </div>
+        `).join('');
+        
+        saveToDisk();
+    }
+
+    function addFighter() {
+        const nameInput = document.getElementById('fighterName');
+        const name = nameInput.value.trim();
+        if (name && !fighters.find(f => f.name === name)) {
+            fighters.push({ name: name, wins: 0, losses: 0, points: 0 });
+            nameInput.value = "";
+            updateUI();
+        }
+    }
+
+    function submitMatch() {
+        const winnerName = document.getElementById('winnerSelect').value;
+        const loserName = document.getElementById('loserSelect').value;
+
+        if (!winnerName || !loserName || winnerName === loserName) return;
+
+        const winner = fighters.find(f => f.name === winnerName);
+        const loser = fighters.find(f => f.name === loserName);
+
+        winner.wins++;
+        winner.points += 3;
+        loser.losses++;
+
+        // Add to history with a timestamp
+        const now = new Date();
+        history.push({
+            winner: winnerName,
+            loser: loserName,
+            time: now.toLocaleTimeString() + " " + now.toLocaleDateString()
+        });
+
+        updateUI();
+    }
+
+    function resetLeague() {
+        if (confirm("Delete all fighters and history?")) {
+            fighters = [];
+            history = [];
+            saveToDisk();
+            updateUI();
+        }
+    }
+
+    updateUI();
+</script>
+
+</body>
+</html>
